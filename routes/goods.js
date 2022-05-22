@@ -18,12 +18,26 @@ router.get("/goods", async (req, res) => {
 });
 
 router.get("/goods/:goodsId", async (req, res) => {
-  const goodsId = req.params.goodsId;
+  const { goodsId } = req.params;
 
-  const [detail] = await Goods.find({ goodsId: Number(goodsId) });
+  const [goods] = await Goods.find({ goodsId: Number(goodsId) });
 
   res.json({
-    detail,
+    goods,
+  });
+});
+
+router.get("/goods/cart", async (req, res) => {
+  const carts = await Cart.find();
+  const goodsIds = carts.map((cart) => cart.goodsId);
+
+  const goods = await Goods.find({ goodsId: goodsIds });
+
+  res.json({
+      cart: carts.map((cart) => ({
+          quantity: cart.quantity,
+          goods: goods.find((item) => item.goodsId === cart.goodsId),
+      })),
   });
 });
 
@@ -55,33 +69,14 @@ router.put("/goods/:goodsId/cart", async (req, res) => {
   const { goodsId } = req.params;
   const { quantity } = req.body;
 
-  if (quantity < 1) {
-    res.status(400).json({ errorMessage: "수량은 1 이상이어야 합니다." });
-    return;
-  }
-
   const existsCarts = await Cart.find({ goodsId: Number(goodsId) });
-  if (existsCarts.length) {
+  if (!existsCarts.length) {
+    await Cart.create({ goodsId: Number(goodsId), quantity });
+  } else {
     await Cart.updateOne({ goodsId: Number(goodsId) }, { $set: { quantity } });
   }
 
   res.json({ success: true });
-});
-
-router.get("goods/cart", async (req, res) => {
-  const carts = await Carts.find();
-  const goodsIds = carts.map((cart) => cart.goodsId);
-
-  const goods = await Goods.find({ goodsId : goodsIds});
-
-  res.json({
-      carts: carts.map((cart) => {
-          return {
-              quantity: cart.quantity,
-              goods: goods.find((item) => item.goodsId === cart.goodsId),
-          };
-      })
-  });
 });
 
 router.post("/goods", async (req, res) => {
